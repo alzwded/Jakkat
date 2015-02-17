@@ -10,3 +10,8 @@
 *.ppu
 *.exe
 jakkat
+
+# dist files
+*.zip
+*.xz
+*.txz
