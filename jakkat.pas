@@ -43,7 +43,7 @@ BEGIN
   mytest;
   (* reentrant parser *)
 
-  (*
+  (* asd d
     things to parse:
     [x=y]       define; y is a string constant
     [x:=a+b]    define with TFPExpressionParser enabled over a+b
