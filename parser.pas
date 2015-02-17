@@ -21,13 +21,14 @@ type
     constructor Inherit(env : TParserDefinitions);
     destructor Destroy; override;
 
-    procedure Substitute(var s: string);
+    procedure Substitute(s: string; var expr: TFPExpressionParser);
 
     property Definition[Id: string] : string read GetItem write SetItem;
   end;
 
   TDefReplaceHelper = class
     s: string;
+    expr: TFPExpressionParser;
     env: TParserDefinitions;
     procedure it(Item: string; const Key: string; var Continue: Boolean);
   end;
@@ -59,11 +60,9 @@ implementation
 (* TDefReplaceHelper *)
 
 procedure TDefReplaceHelper.it(Item: String; const Key: String; var Continue: Boolean);
-var
-  newVal: string;
 begin
-  newVal := ReplaceRegExpr('<' + Key + '>', s, Item, False);
-  env.Definition[Key] := newVal;
+  if pos(key, s) > 0 then
+    expr.Identifiers.AddIntegerVariable(key, StrToInt(Item));
 end;
 
 (* TParserDefinitions *)
@@ -108,16 +107,16 @@ begin
     m_table.Add(Id, Val);
 end;
 
-procedure TParserDefinitions.Substitute(var s: string);
+procedure TParserDefinitions.Substitute(s: string; var expr: TFPExpressionParser);
 var
   obj: TDefReplaceHelper;
 begin
   obj := tDefReplaceHelper.Create;
   obj.s := s;
+  obj.expr := expr;
   obj.env := Self;
   m_table.Iterate(@obj.it);
   obj.Free;
-  s := obj.s;
 end;
 
 (* TParser *)
@@ -156,14 +155,17 @@ begin
     sleft := copy(captured, 1, pos(':=', captured) - 1);
     sexpr := copy(captured, pos(':=', captured) + 2, length(captured));
 
-    (* replace variables with values *)
-    env.Substitute(sexpr);
-
     exprParser := TFPExpressionParser.Create(nil);
+
+    (* replace variables with values *)
+    env.Substitute(sexpr, exprParser);
+
+    writeln('after substitute: ', sexpr);
+
     try
       exprParser.Expression := sexpr;
       exprResult := exprParser.Evaluate;
-      m_env.Definition[sleft] := exprResult.ResString;
+      m_env.Definition[sleft] := IntToStr(exprResult.ResInteger);
     finally
       exprParser.Free;
     end;
@@ -288,6 +290,7 @@ begin
         end;
       end;
       AddLine(line);
+      writeln(Buffer);
     until(EOF(f));
   finally
     CloseFile(f);
