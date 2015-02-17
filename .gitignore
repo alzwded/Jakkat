@@ -3,6 +3,7 @@
 *.err
 *.out
 *.bak
+*.dsk
 
 # build files
 *.o

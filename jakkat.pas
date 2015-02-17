@@ -42,5 +42,16 @@ BEGIN
 
   mytest;
   (* reentrant parser *)
+
+  (*
+    things to parse:
+    [x=y]       define; y is a string constant
+    [x:=a+b]    define with TFPExpressionParser enabled over a+b
+    {file}      include file
+    {3xfile}    include file 3 times
+    {13xfile$x=y$a:=x+y}
+                include file with defines
+    <x>         expand define
+  *)
 END.
 
