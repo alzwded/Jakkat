@@ -80,7 +80,6 @@ begin
   m_table := TFPStringHashTable.Create;
 
   table.Iterate(@Self.CopyIterateFn);
-  writeln('  done inheriting');
 end;
 
 destructor TParserDefinitions.Destroy;
@@ -93,7 +92,6 @@ end;
 procedure TParserDefinitions.CopyIterateFn(Item: string; const Key: string; var Continue: Boolean);
 begin
   m_table.Add(Key, Item);
-  writeln('  added ', key, ', ', Item);
 end;
 
 function TParserDefinitions.GetItem(Id: string): string;
@@ -162,8 +160,6 @@ begin
     (* replace variables with values *)
     env.Substitute(sexpr, exprParser);
 
-    writeln('after substitute: ', sexpr);
-
     try
       exprParser.Expression := sexpr;
       exprResult := exprParser.Evaluate;
@@ -189,14 +185,11 @@ begin
   beginPos := 1;
 
   while pos('$', s) > 0 do begin
-    writeln('    include string: ', s);
     beginPos := pos('$', s);
     if pos('$', copy(s, beginPos + 1, length(s))) > 0 then
       endPos := pos('$', copy(s, beginPos + 1, length(s))) - 1;
     expr := copy(s, beginPos + 1, endPos - beginPos + 1);
-    writeln('      expr: ', expr);
     s := copy(s, endPos + 1, length(s));
-    writeln('      string after: ', s);
 
     ParseAssignation(expr, env);
   end;
@@ -247,7 +240,6 @@ begin
     Reset(f);
     repeat
       readln(f, line);
-      writeln('got line: ', line);
       if pos('#', line) > 0 then begin
         comment := copy(line, pos('#', line), length(line));
         line := copy(line, 1, pos('#', line) - 1);
@@ -275,12 +267,8 @@ begin
                (* parse string => count, filename, def's *)
                if not r_curly.Exec(line) then
                  writeln('regex failed???');
-               writeln(r_curly.Match[1]);
                if not r_parseSquare.Exec(r_curly.Match[1]) then
                  writeln('other regex failed???');
-               writeln(r_parseSquare.Match[1]);
-               writeln(r_parseSquare.Match[2]);
-               writeln(r_parseSquare.Match[3]);
                r_count := r_parseSquare.Match[1];
                r_file := r_parseSquare.Match[2];
                s := r_parseSquare.Match[3];
@@ -290,18 +278,11 @@ begin
                else
                  nbOfInserts := 1;
 
-               writeln('before parse include defs');
-
                ParseIncludeDefs(s, newEnv);
-
-               writeln('after');
 
                (* launch a new parser *)
                newParser := TParser.New(newEnv);
-               writeln('before free');
                newEnv.Free;
-               writeln('after');
-               writeln('newfile: ', r_file);
                newParser.Enter(r_file);
                (* replace include with the parser's buffer *)
                r_aggregate := '';
@@ -313,10 +294,8 @@ begin
                newParser.Free;
              end;
         end;
-        writeln('  parsed: ', line);
       end;
       AddLine(line + comment);
-      writeln(Buffer);
     until(EOF(f));
   finally
     CloseFile(f);
