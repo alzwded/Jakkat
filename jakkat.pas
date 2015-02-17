@@ -41,7 +41,8 @@ begin
     end;
   until c = EndOfOptions;
   while optind <= paramcount do begin
-    writeln('file: ', paramstr(optind));
+    SetLength(paths, length(paths) + 1);
+    paths[length(paths) - 1] := paramstr(optind);
     inc(optind);
   end;
 end;

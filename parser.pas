@@ -8,10 +8,6 @@ interface
 uses contnrs, regexpr, fpexprpars, classes, SysUtils;
 
 type
-  TDefReplaceHelper = class
-    s: string;
-    procedure it(Item: string; const Key: string; var Continue: Boolean);
-  end;
   TParserDefinitions = class
   private
     m_table : TFPStringHashTable;
@@ -28,6 +24,12 @@ type
     procedure Substitute(var s: string);
 
     property Definition[Id: string] : string read GetItem write SetItem;
+  end;
+
+  TDefReplaceHelper = class
+    s: string;
+    env: TParserDefinitions;
+    procedure it(Item: string; const Key: string; var Continue: Boolean);
   end;
 
   TParser = class
@@ -49,6 +51,7 @@ type
     property Buffer : string read GetBufferAsString;
   end;
 
+function SuperReplace(who, first, last, s: string): string;
 procedure mytest;
 
 implementation
@@ -56,8 +59,11 @@ implementation
 (* TDefReplaceHelper *)
 
 procedure TDefReplaceHelper.it(Item: String; const Key: String; var Continue: Boolean);
+var
+  newVal: string;
 begin
-  ReplaceRegExpr('\<' + Key + '\>', s, Item, False);
+  newVal := ReplaceRegExpr('<' + Key + '>', s, Item, False);
+  env.Definition[Key] := newVal;
 end;
 
 (* TParserDefinitions *)
@@ -108,6 +114,7 @@ var
 begin
   obj := tDefReplaceHelper.Create;
   obj.s := s;
+  obj.env := Self;
   m_table.Iterate(@obj.it);
   obj.Free;
   s := obj.s;
@@ -146,7 +153,7 @@ var
   exprResult: TFPExpressionResult;
 begin
   if pos(':=', captured) > 0 then begin
-    sleft := copy(captured, 1, pos(':=', captured));
+    sleft := copy(captured, 1, pos(':=', captured) - 1);
     sexpr := copy(captured, pos(':=', captured) + 2, length(captured));
 
     (* replace variables with values *)
@@ -161,7 +168,7 @@ begin
       exprParser.Free;
     end;
   end else begin
-    sleft := copy(captured, 1, pos('=', captured));
+    sleft := copy(captured, 1, pos('=', captured) - 1);
     sexpr := copy(captured, pos('=', captured) + 1, length(captured));
 
     m_env.Definition[sleft] := sexpr;
@@ -181,7 +188,7 @@ begin
     beginPos := pos('$', s);
     if pos('$', copy(s, beginPos + 1, length(s))) > 0 then
       endPos := pos('$', copy(s, beginPos + 1, length(s)));
-    expr := copy(s, beginPos, endPos);
+    expr := copy(s, beginPos + 1, endPos - beginPos + 1);
     s := copy(s, endPos + 1, length(s));
   end;
 end;
@@ -231,7 +238,7 @@ begin
     repeat
       readln(f, line);
       if pos('#', line) > 0 then
-        line := copy(line, 1, pos('#', line));
+        line := copy(line, 1, pos('#', line) - 1);
       while r_any.Exec(line) do begin
         case r_any.Match[1][1] of
         '[': begin
@@ -243,17 +250,11 @@ begin
                end;
                ParseAssignation(captured, m_env);
 
-               ReplaceRegExpr(r_square.Expression,
-                              line,
-                              '',
-                              False);
+               line := SuperReplace(line, '[', ']', '');
              end;
         '<': begin
                r_angular.Exec(line);
-               ReplaceRegExpr(r_angular.Expression,
-                              line,
-                              m_Env.Definition[r_angular.Match[1]],
-                              False);
+               line := SuperReplace(line, '<', '>', m_env.Definition[r_angular.Match[1]]);
              end;
         '{': begin
                newEnv := TParserDefinitions.Inherit(m_env);
@@ -281,10 +282,7 @@ begin
                  r_aggregate := r_aggregate + newParser.Buffer;
                  dec(nbOfInserts);
                end;
-               ReplaceRegExpr(r_curly.Expression,
-                              line,
-                              newParser.Buffer,
-                              False);
+               line := SuperReplace(line, '{', '}', newParser.Buffer);
                newParser.Free;
              end;
         end;
@@ -299,6 +297,17 @@ begin
   r_square.Free;
   r_curly.Free;
   r_parseSquare.Free;
+end;
+
+(* SuperReplace *)
+
+function SuperReplace(who, first, last, s: string): string;
+var
+  intermed, rema: string;
+begin
+  intermed := copy(who, 1, pos(first, who) - 1);
+  rema := copy(who, pos(first, who) + 1, length(who));
+  Result := intermed + s + copy(rema, pos(last, rema) + 1, length(rema))
 end;
 
 (* mytest *)
