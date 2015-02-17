@@ -31,7 +31,8 @@ begin
     EndOfOptions: break;
     'D': begin
            if pos('=', optArg) > 0 then
-             defs.Definition[copy(optArg, 1, pos('=', optArg))] := copy(optArg, pos('=', optArg) + 1, length(optArg));
+             defs.Definition[copy(optArg, 1, pos('=', optArg) - 1)] :=
+                 copy(optArg, pos('=', optArg) + 1, length(optArg));
          end;
     'w': begin
            outfilename := optarg;
