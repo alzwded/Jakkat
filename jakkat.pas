@@ -1,6 +1,12 @@
 program Jakkat;
 
-uses GetOpts, TestUnit;
+uses GetOpts, Parser;
+
+var
+  defs: TParserDefinitions;
+  parsr: TParser;
+  path: string;
+  paths: array of string;
 
 procedure Usage;
 begin
@@ -38,12 +44,13 @@ begin
 end;
 
 BEGIN
+  defs := TParserDefinitions.New;
+
   ParseCommandLineOptions;
 
-  mytest;
   (* reentrant parser *)
 
-  (* asd d
+  (*
     things to parse:
     [x=y]       define; y is a string constant
     [x:=a+b]    define with TFPExpressionParser enabled over a+b
@@ -53,5 +60,14 @@ BEGIN
                 include file with defines
     <x>         expand define
   *)
+
+  parsr := TParser.New(defs);
+  defs.Free;
+
+  for path in paths do begin
+    parsr.Enter(path);
+  end;
+
+  parsr.Free;
 END.
 
