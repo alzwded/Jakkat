@@ -5,7 +5,7 @@ unit Parser;
 
 interface
 
-uses contnrs, regexpr, fpexprpars;
+uses contnrs, regexpr, fpexprpars, classes, SysUtils;
 
 type
   TParserDefinitions = class
@@ -27,12 +27,20 @@ type
   TParser = class
   private
     m_env : TParserDefinitions;
+    m_buffer : TStringStream;
+
+    procedure AddLine(s: string);
+    procedure ParseIncludeDefs(s: string; var env: TParserDefinitions);
+    procedure ParseAssignation(captured: string; var env: TParserDefinitions);
+    function GetBufferAsString: string;
   protected
   public
     constructor New(env : TParserDefinitions);
     destructor Destroy; override;
 
     procedure Enter(path : string);
+
+    property Buffer : string read GetBufferAsString;
   end;
 
 procedure mytest;
@@ -86,13 +94,69 @@ end;
 constructor TParser.New(env : TParserDefinitions);
 begin
   m_env := TParserDefinitions.Inherit(env);
+  m_buffer := TStringStream.Create('');
 end;
 
 destructor TParser.Destroy;
 begin
+  m_buffer.Free;
   m_env.Free;
 
   Inherited;
+end;
+
+function TParser.GetBufferAsString: string;
+begin
+  Result := m_buffer.DataString;
+end;
+
+procedure TParser.AddLine(s: string);
+begin
+  m_buffer.WriteString(s + LineEnding);
+end;
+
+procedure TParser.ParseAssignation(captured: string; var env: TParserDefinitions);
+var
+  sleft, sexpr: string;
+  exprParser: TFPExpressionParser;
+  exprResult: TFPExpressionResult;
+begin
+  if pos(':=', captured) > 0 then begin
+    sleft := copy(captured, 1, pos(':=', captured));
+    sexpr := copy(captured, pos(':=', captured) + 2, length(captured));
+
+    exprParser := TFPExpressionParser.Create(nil);
+    try
+      exprParser.Expression := sexpr;
+      exprResult := exprParser.Evaluate;
+      m_env.Definition[sleft] := exprResult.ResString;
+    finally
+      exprParser.Free;
+    end;
+  end else begin
+    sleft := copy(captured, 1, pos('=', captured));
+    sexpr := copy(captured, pos('=', captured) + 1, length(captured));
+
+    m_env.Definition[sleft] := sexpr;
+  end;
+end;
+
+procedure TParser.ParseIncludeDefs(s: string; var env: TParserDefinitions);
+var
+  endPos: integer;
+  beginPos: integer;
+  expr: string;
+begin
+  endPos := length(s);
+  beginPos := 1;
+
+  while pos('$', s) > 0 do begin
+    beginPos := pos('$', s);
+    if pos('$', copy(s, beginPos + 1, length(s))) > 0 then
+      endPos := pos('$', copy(s, beginPos + 1, length(s)));
+    expr := copy(s, beginPos, endPos);
+    s := copy(s, endPos + 1, length(s));
+  end;
 end;
 
 procedure TParser.Enter(path: string);
@@ -104,8 +168,15 @@ var
   r_any: TRegExpr;
   r: TRegExpr;
   sleft, sexpr: string;
-  exprParser: TFPExpressionParser;
-  exprResult: TFPExpressionResult;
+
+  r_parseSquare: TRegExpr;
+  r_count, r_file, s: string;
+  r_aggregate: string;
+  nbOfInserts: integer;
+
+  newEnv: TParserDefinitions;
+  newParser: TParser;
+  newFile: string;
 begin
   (* open file
      for each line
@@ -121,10 +192,12 @@ begin
   r_square := TRegExpr.Create;
   r_curly  := TRegExpr.Create;
   r_any    := TRegExpr.Create;
+  r_parseSquare := TRegExpr.Create;
   r_Square.Expression := '\[([^\]]*)\]';
   r_angular.Expression := '<([^>]*)>';
   r_curly.Expression := '{([^}]*)}';
   r_any.Expression := '([\[{<])';
+  r_parseSquare.Expression := '^([0-9]+x)?([^\$]*)(\$.*)$';
 
   try
     Reset(f);
@@ -139,24 +212,8 @@ begin
                  writeln('Error: invalid assignation');
                  halt(1);
                end;
-               if pos(':=', captured) > 0 then begin
-                 sleft := copy(captured, 1, pos(':=', captured));
-                 sexpr := copy(captured, pos(':=', captured) + 2, length(captured));
+               ParseAssignation(captured, m_env);
 
-                 exprParser := TFPExpressionParser.Create(nil);
-                 try
-                   exprParser.Expression := sexpr;
-                   exprResult := exprParser.Evaluate;
-                   m_env.Definition[sleft] := exprResult.ResString;
-                 finally
-                   exprParser.Free;
-                 end;
-               end else begin
-                 sleft := copy(captured, 1, pos('=', captured));
-                 sexpr := copy(captured, pos('=', captured) + 1, length(captured));
-
-                 m_env.Definition[sleft] := sexpr;
-               end;
                ReplaceRegExpr(r_square.Expression,
                               line,
                               '',
@@ -170,14 +227,49 @@ begin
                               False);
              end;
         '{': begin
-               (* TODO *)
+               newEnv := TParserDefinitions.Inherit(m_env);
+               (* parse string => count, filename, def's *)
+               r_square.Exec(line);
+               r_parseSquare.Exec(r_square.Match[1]);
+               r_count := r_parseSquare.Match[1];
+               r_file := r_parseSquare.Match[2];
+               s := r_parseSquare.Match[3];
+
+               if length(r_count) > 0 then
+                 nbOfInserts := StrToInt(copy(r_count, 1, length(r_count) - 1))
+               else
+                 nbOfInserts := 1;
+
+               ParseIncludeDefs(s, newEnv);
+
+               (* launch a new parser *)
+               newParser := TParser.New(newEnv);
+               newEnv.Free;
+               newParser.Enter(newFile);
+               (* replace include with the parser's buffer *)
+               r_aggregate := '';
+               while nbOfInserts > 0 do begin
+                 r_aggregate := r_aggregate + newParser.Buffer;
+                 dec(nbOfInserts);
+               end;
+               ReplaceRegExpr(r_curly.Expression,
+                              line,
+                              newParser.Buffer,
+                              False);
+               newParser.Free;
              end;
         end;
       end;
+      AddLine(line);
     until(EOF(f));
   finally
     CloseFile(f);
   end;
+
+  r_angular.Free;
+  r_square.Free;
+  r_curly.Free;
+  r_parseSquare.Free;
 end;
 
 (* mytest *)

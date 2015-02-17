@@ -1,12 +1,16 @@
 program Jakkat;
 
-uses GetOpts, Parser;
+{$mode objfpc}
+
+uses GetOpts, Parser, SysUtils;
 
 var
   defs: TParserDefinitions;
   parsr: TParser;
   path: string;
   paths: array of string;
+  outfilename: string;
+  f: TextFile;
 
 procedure Usage;
 begin
@@ -16,7 +20,7 @@ end;
 
 procedure ParseCommandLineOptions;
 const
-  optString = 'D:I:w::';
+  optString = 'D:w::h';
 var
   c : char;
 begin
@@ -26,14 +30,13 @@ begin
     case c of
     EndOfOptions: break;
     'D': begin
-           writeln('define: ''', optarg, '''');
-         end;
-    'I': begin
-           writeln('include dir: ''', optarg, '''');
+           if pos('=', optArg) > 0 then
+             defs.Definition[copy(optArg, 1, pos('=', optArg))] := copy(optArg, pos('=', optArg) + 1, length(optArg));
          end;
     'w': begin
-           writeln('write: ', '''', optarg, '''');
+           outfilename := optarg;
          end;
+    'h': Usage;
     '?': Usage;
     end;
   until c = EndOfOptions;
@@ -45,6 +48,7 @@ end;
 
 BEGIN
   defs := TParserDefinitions.New;
+  outfilename := '';
 
   ParseCommandLineOptions;
 
@@ -61,12 +65,22 @@ BEGIN
     <x>         expand define
   *)
 
+
+
   parsr := TParser.New(defs);
   defs.Free;
 
   for path in paths do begin
     parsr.Enter(path);
   end;
+  if length(outfilename) > 0 then
+    AssignFile(f, outfilename)
+  else
+    AssignFile(f, '');
+
+  Rewrite(f);
+  write(f, parsr.Buffer);
+  CloseFile(f);
 
   parsr.Free;
 END.
