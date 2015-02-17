@@ -62,7 +62,13 @@ implementation
 procedure TDefReplaceHelper.it(Item: String; const Key: String; var Continue: Boolean);
 begin
   if pos(key, s) > 0 then
-    expr.Identifiers.AddIntegerVariable(key, StrToInt(Item));
+    try
+      expr.Identifiers.AddIntegerVariable(key, StrToInt(Item));
+    except
+      on Exception do
+        expr.Identifiers.AddStringVariable(key, Item);
+    end;
+
 end;
 
 (* TParserDefinitions *)
@@ -156,6 +162,7 @@ begin
     sexpr := copy(captured, pos(':=', captured) + 2, length(captured));
 
     exprParser := TFPExpressionParser.Create(nil);
+    exprParser.Builtins := [bcMath, bcConversion, bcStrings];
 
     (* replace variables with values *)
     env.Substitute(sexpr, exprParser);
@@ -163,7 +170,11 @@ begin
     try
       exprParser.Expression := sexpr;
       exprResult := exprParser.Evaluate;
-      m_env.Definition[sleft] := IntToStr(exprResult.ResInteger);
+      case exprResult.ResultType of
+      rtInteger: m_env.Definition[sleft] := IntToStr(exprResult.ResInteger);
+      rtString: m_env.Definition[sleft] := exprResult.ResString;
+      end;
+
     finally
       exprParser.Free;
     end;
