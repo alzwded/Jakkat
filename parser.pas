@@ -8,6 +8,10 @@ interface
 uses contnrs, regexpr, fpexprpars, classes, SysUtils;
 
 type
+  TDefReplaceHelper = class
+    s: string;
+    procedure it(Item: string; const Key: string; var Continue: Boolean);
+  end;
   TParserDefinitions = class
   private
     m_table : TFPStringHashTable;
@@ -20,6 +24,8 @@ type
     constructor New;
     constructor Inherit(env : TParserDefinitions);
     destructor Destroy; override;
+
+    procedure Substitute(var s: string);
 
     property Definition[Id: string] : string read GetItem write SetItem;
   end;
@@ -46,6 +52,13 @@ type
 procedure mytest;
 
 implementation
+
+(* TDefReplaceHelper *)
+
+procedure TDefReplaceHelper.it(Item: String; const Key: String; var Continue: Boolean);
+begin
+  ReplaceRegExpr('\<' + Key + '\>', s, Item, False);
+end;
 
 (* TParserDefinitions *)
 
@@ -89,6 +102,17 @@ begin
     m_table.Add(Id, Val);
 end;
 
+procedure TParserDefinitions.Substitute(var s: string);
+var
+  obj: TDefReplaceHelper;
+begin
+  obj := tDefReplaceHelper.Create;
+  obj.s := s;
+  m_table.Iterate(@obj.it);
+  obj.Free;
+  s := obj.s;
+end;
+
 (* TParser *)
 
 constructor TParser.New(env : TParserDefinitions);
@@ -124,6 +148,9 @@ begin
   if pos(':=', captured) > 0 then begin
     sleft := copy(captured, 1, pos(':=', captured));
     sexpr := copy(captured, pos(':=', captured) + 2, length(captured));
+
+    (* replace variables with values *)
+    env.Substitute(sexpr);
 
     exprParser := TFPExpressionParser.Create(nil);
     try
@@ -203,6 +230,8 @@ begin
     Reset(f);
     repeat
       readln(f, line);
+      if pos('#', line) > 0 then
+        line := copy(line, 1, pos('#', line));
       while r_any.Exec(line) do begin
         case r_any.Match[1][1] of
         '[': begin

@@ -1,0 +1,10 @@
+# some definitions
+[x1=y][x2=y][x3:=3*5][x4:=x3+1]
+<x1> and <x2> and <x3> and <x4>
+{other_no.txt}
+{other_yes.txt$x1=y$x2:=x2}
+=============
+{3xother_no.txt}
+=============
+{3xother_yes.txt$x1=1$x2=1}
+=============
