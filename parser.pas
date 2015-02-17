@@ -309,7 +309,7 @@ begin
                  r_aggregate := r_aggregate + newParser.Buffer;
                  dec(nbOfInserts);
                end;
-               line := SuperReplace(line, '{', '}', newParser.Buffer);
+               line := SuperReplace(line, '{', '}', r_aggregate);
                newParser.Free;
              end;
         end;
