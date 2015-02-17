@@ -1,0 +1,10 @@
+# freepascal stuff
+*.$$$
+*.err
+*.out
+*.bak
+
+# build files
+*.o
+*.ppu
+*.exe
