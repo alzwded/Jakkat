@@ -3,3 +3,4 @@
 [b=3]
 [x2:=x]
 <x2>
+{sub_t3.txt$QQQ:=a+b}

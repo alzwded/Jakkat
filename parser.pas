@@ -171,10 +171,9 @@ begin
       exprParser.Expression := sexpr;
       exprResult := exprParser.Evaluate;
       case exprResult.ResultType of
-      rtInteger: m_env.Definition[sleft] := IntToStr(exprResult.ResInteger);
-      rtString: m_env.Definition[sleft] := exprResult.ResString;
+      rtInteger: env.Definition[sleft] := IntToStr(exprResult.ResInteger);
+      rtString: env.Definition[sleft] := exprResult.ResString;
       end;
-
     finally
       exprParser.Free;
     end;
@@ -182,7 +181,7 @@ begin
     sleft := copy(captured, 1, pos('=', captured) - 1);
     sexpr := copy(captured, pos('=', captured) + 1, length(captured));
 
-    m_env.Definition[sleft] := sexpr;
+    env.Definition[sleft] := sexpr;
   end;
 end;
 
