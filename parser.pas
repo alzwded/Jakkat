@@ -171,12 +171,17 @@ begin
       exprParser.Expression := sexpr;
       exprResult := exprParser.Evaluate;
       case exprResult.ResultType of
+      rtFloat: env.Definition[sleft] := IntToStr(Trunc(exprResult.ResFloat));
       rtInteger: env.Definition[sleft] := IntToStr(exprResult.ResInteger);
       rtString: env.Definition[sleft] := exprResult.ResString;
       end;
-    finally
-      exprParser.Free;
+    except
+      on e: Exception do begin
+        writeln(e.ClassName);
+        writeln(e.Message);
+      end;
     end;
+    exprParser.Free;
   end else begin
     sleft := copy(captured, 1, pos('=', captured) - 1);
     sexpr := copy(captured, pos('=', captured) + 1, length(captured));
