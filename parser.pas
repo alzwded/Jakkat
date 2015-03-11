@@ -201,9 +201,10 @@ begin
 
   while pos('$', s) > 0 do begin
     beginPos := pos('$', s);
+    endPos := length(s);
     if pos('$', copy(s, beginPos + 1, length(s))) > 0 then
-      endPos := pos('$', copy(s, beginPos + 1, length(s))) - 1;
-    expr := copy(s, beginPos + 1, endPos - beginPos + 1);
+      endPos := pos('$', copy(s, beginPos + 1, length(s)));
+    expr := copy(s, beginPos + 1, endPos - beginPos);
     s := copy(s, endPos + 1, length(s));
 
     ParseAssignation(expr, env);
