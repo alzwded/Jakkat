@@ -65,8 +65,10 @@ begin
     try
       expr.Identifiers.AddIntegerVariable(key, StrToInt(Item));
     except
-      on Exception do
+      on ex: Exception do begin
+        writeln(StdErr, ex.Message);
         expr.Identifiers.AddStringVariable(key, Item);
+      end;
     end;
 
 end;
